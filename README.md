@@ -7,7 +7,7 @@ Built as a portfolio demo targeting B2B SaaS companies where security reviews an
 ## Demo — run in 30 seconds
 
 ```bash
-git clone <repo-url>
+git clone https://github.com/Daniel5569/security-compliance-evidence-automation
 cd security-compliance-evidence-automation
 npm install
 npm run dev
@@ -71,9 +71,9 @@ The demo ships with controls across five SOC 2 Trust Services Criteria domains:
 |--------|----------|
 | Access control (CC6) | User access review, employee access, authentication |
 | Change management (CC8) | Change approval, deployment, rollback, vulnerability triage |
-| Incident response (CC7) | IR procedures, severity matrix, customer communication |
+| Incident response (CC7.2–7.5) | IR procedures, severity matrix, customer communication |
 | Vendor management (CC9) | Vendor risk, subprocessor register, supplier review |
-| Security monitoring (CC7) | Alert policy, triage samples, log coverage |
+| Security monitoring (CC7.1) | Alert policy, triage samples, log coverage |
 
 Plus ISO 27001 Annex A domains (A.5 – A.18 subset) and a Customer Security Review package track.
 
@@ -100,7 +100,7 @@ A **package** is `ready` when:
 
 ## Tech stack
 
-- **Next.js 15** (App Router, static export)
+- **Next.js 15** (App Router)
 - **React 19** with TypeScript strict mode
 - **Vitest** — 12 tests covering compliance engine and hash chain
 - **ESLint 9** flat config with `typescript-eslint`
@@ -113,7 +113,7 @@ A **package** is `ready` when:
 npm run dev    # dev server at localhost:3000
 npm run build  # production build
 npm run lint   # ESLint (zero warnings)
-npm test       # Vitest (12 tests)
+npm test       # Vitest
 npx tsc --noEmit  # type-check
 ```
 
