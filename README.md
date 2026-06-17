@@ -73,7 +73,7 @@ Open [http://localhost:3000](http://localhost:3000). The Dashboard, Controls, Ga
 
 **Architectural notes:**
 - This project intentionally diverges from the event-driven (Redis Streams) pattern used in other repos in this portfolio. Compliance evidence collection is snapshot-based and human-paced — scheduled jobs with an append-only audit trail are the correct fit. See [`docs/adr-001-scheduled-jobs-vs-event-driven.md`](docs/adr-001-scheduled-jobs-vs-event-driven.md).
-- The decision to add Neon persistence while keeping the frontend-only UX intact is documented in [`docs/adr-002-neon-postgres-audit-persistence.md`](docs/adr-002-neon-postgres-audit-persistence.md).
+- The decision to add Neon persistence while keeping the in-memory demo UX intact is documented in [`docs/adr-002-neon-postgres-audit-persistence.md`](docs/adr-002-neon-postgres-audit-persistence.md).
 
 ## Distinctive feature: tamper-evident audit trail
 
@@ -127,25 +127,26 @@ A **package** is `ready` when:
 - **Next.js 15** (App Router, API routes)
 - **React 19** with TypeScript strict mode
 - **Drizzle ORM** + **Neon PostgreSQL** (serverless HTTP driver) — audit event persistence
-- **Vitest** — 17 tests covering compliance engine, hash chain, and server-side append logic
+- **Vitest** — 21 tests: 17 unit (compliance engine, hash chain, server-side append) + 4 integration (DB tamper detection, skipped without `DATABASE_URL`)
 - **ESLint 9** flat config with `typescript-eslint`
 - **GitHub Actions** CI (lint → type-check → test → build)
 
 ## Commands
 
 ```bash
-npm run dev       # dev server at localhost:3000
-npm run build     # production build
-npm run lint      # ESLint (zero warnings)
-npm test          # Vitest (17 tests, no DB required)
-npx tsc --noEmit  # type-check
-npm run db:push   # push schema to Neon (requires DATABASE_URL in .env)
-npm run db:studio # open Drizzle Studio to browse audit_events table
+npm run dev              # dev server at localhost:3000
+npm run build            # production build
+npm run lint             # ESLint (zero warnings)
+npm test                 # Vitest unit tests (17 pass; 4 integration skipped without DATABASE_URL)
+npm run test:integration # DB tamper-detection integration tests (requires DATABASE_URL in .env)
+npx tsc --noEmit         # type-check
+npm run db:push          # push schema to Neon (requires DATABASE_URL in .env)
+npm run db:studio        # open Drizzle Studio to browse audit_events table
 ```
 
 ## Synthetic data and privacy
 
-All controls, evidence items, owners, and audit events are deterministic synthetic data. No real names, infrastructure identifiers, API keys, credentials, or customer data. Safe to publish as-is.
+Seed controls, evidence items, owners, and the pre-loaded audit events are deterministic synthetic data. Reviewer actions taken in the live UI generate real audit events that are persisted to your Neon instance — those are not synthetic. No real names, infrastructure identifiers, API keys, credentials, or customer data in the repo. Safe to publish as-is.
 
 ## Compliance disclaimer
 
