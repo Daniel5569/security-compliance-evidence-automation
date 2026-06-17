@@ -9,6 +9,7 @@
     "build": "next build",
     "lint": "eslint . --max-warnings=0",
     "test": "vitest run",
+    "test:integration": "node --env-file=.env ./node_modules/.bin/vitest run tests/audit-tamper.integration.test.ts",
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio"
   },
