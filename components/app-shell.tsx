@@ -44,6 +44,7 @@ export function AppShell() {
   const [filter, setFilter] = useState<FilterKey>("all");
   const [query, setQuery] = useState("");
   const [packageStatus, setPackageStatus] = useState<"draft" | "generated">("draft");
+  const [persistedIds, setPersistedIds] = useState<Set<string>>(new Set());
 
   const readinessByControl = useMemo(
     () =>
@@ -98,7 +99,7 @@ export function AppShell() {
     (item) => item.frameworkIds.includes(selectedPackageFrameworkId) && getEffectiveEvidenceStatus(item, asOfDate) !== "approved"
   );
 
-  function handleReviewerAction(action: ReviewerAction) {
+  async function handleReviewerAction(action: ReviewerAction) {
     if (!selectedEvidence) {
       return;
     }
@@ -112,24 +113,45 @@ export function AppShell() {
     );
     setEvidenceItems((current) => current.map((item) => (item.id === updatedEvidence.id ? updatedEvidence : item)));
     setAuditEvents((current) => [auditEvent, ...current]);
+
+    try {
+      await fetch("/api/audit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(auditEvent),
+      });
+      setPersistedIds((prev) => new Set([...prev, auditEvent.id]));
+    } catch {
+      // Non-fatal: the in-memory chain is the source of truth; DB is best-effort
+    }
   }
 
-  function handleGeneratePackage() {
+  async function handleGeneratePackage() {
+    const auditEvent: AuditEvent = {
+      id: `AUD-${Date.now()}`,
+      timestamp: new Date().toISOString(),
+      actor: "Avery Stone",
+      action: "package generated",
+      targetType: "package",
+      targetId: `PKG-${selectedPackageFrameworkId.toUpperCase()}`,
+      beforeStatus: packageStatus,
+      afterStatus: "generated",
+      note: "Synthetic export preview generated from approved, redacted evidence.",
+    };
+
     setPackageStatus("generated");
-    setAuditEvents((current) => [
-      {
-        id: `AUD-${Date.now()}`,
-        timestamp: new Date().toISOString(),
-        actor: "Avery Stone",
-        action: "package generated",
-        targetType: "package",
-        targetId: `PKG-${selectedPackageFrameworkId.toUpperCase()}`,
-        beforeStatus: packageStatus,
-        afterStatus: "generated",
-        note: "Synthetic export preview generated from approved, redacted evidence."
-      },
-      ...current
-    ]);
+    setAuditEvents((current) => [auditEvent, ...current]);
+
+    try {
+      await fetch("/api/audit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(auditEvent),
+      });
+      setPersistedIds((prev) => new Set([...prev, auditEvent.id]));
+    } catch {
+      // Non-fatal
+    }
   }
 
   return (
@@ -231,7 +253,7 @@ export function AppShell() {
             selectedFrameworkId={selectedPackageFrameworkId}
           />
         )}
-        {activeView === "audit" && <AuditLogTable events={auditEvents} />}
+        {activeView === "audit" && <AuditLogTable events={auditEvents} persistedIds={persistedIds} />}
       </section>
     </main>
   );

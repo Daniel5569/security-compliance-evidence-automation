@@ -619,6 +619,18 @@ textarea {
   color: var(--red);
 }
 
+.db-badge {
+  background: #e8f1fb;
+  border-radius: 4px;
+  color: var(--blue);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  margin-left: 6px;
+  padding: 1px 5px;
+  vertical-align: middle;
+}
+
 .btn-ghost {
   background: transparent;
   border: 1px solid var(--border);

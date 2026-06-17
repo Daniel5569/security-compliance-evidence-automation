@@ -6,7 +6,7 @@ import type { ChainedAuditEvent } from "@/lib/audit-chain";
 import type { AuditEvent } from "@/lib/compliance-types";
 import { formatDate } from "@/lib/formatters";
 
-export function AuditLogTable({ events }: { events: AuditEvent[] }) {
+export function AuditLogTable({ events, persistedIds = new Set() }: { events: AuditEvent[]; persistedIds?: Set<string> }) {
   const [chain, setChain] = useState<ChainedAuditEvent[]>([]);
   const [chainValid, setChainValid] = useState<boolean | null>(null);
   const [showAll, setShowAll] = useState(false);
@@ -87,6 +87,9 @@ export function AuditLogTable({ events }: { events: AuditEvent[] }) {
                   title={`${event.chainHash}\n← prev: ${event.previousHash}`}
                 >
                   {shortHash(event.chainHash)}
+                  {persistedIds.has(event.id) && (
+                    <span className="db-badge" title="Persisted to Neon PostgreSQL">db</span>
+                  )}
                 </td>
               </tr>
             ))}

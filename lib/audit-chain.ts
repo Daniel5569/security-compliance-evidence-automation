@@ -20,6 +20,16 @@ function eventPayload(event: AuditEvent): string {
   return [event.id, event.timestamp, event.actor, event.action, event.targetId, event.beforeStatus, event.afterStatus].join("|");
 }
 
+export async function appendEvent(
+  event: AuditEvent,
+  previousHash: string,
+  sequenceNumber: number
+): Promise<ChainedAuditEvent> {
+  const payload = eventPayload(event) + "|" + previousHash;
+  const chainHash = await sha256(payload);
+  return { ...event, chainHash, previousHash, sequenceNumber };
+}
+
 export async function buildChain(events: AuditEvent[]): Promise<ChainedAuditEvent[]> {
   const chain: ChainedAuditEvent[] = [];
   let previousHash = GENESIS_HASH;

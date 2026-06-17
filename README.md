@@ -4,16 +4,31 @@ A production-shaped compliance operations console for tracking SOC 2, ISO 27001,
 
 Built as a portfolio demo targeting B2B SaaS companies where security reviews and evidence management are often handled manually in spreadsheets.
 
-## Demo — run in 30 seconds
+## Demo — run in 60 seconds
 
 ```bash
 git clone https://github.com/Daniel5569/security-compliance-evidence-automation
 cd security-compliance-evidence-automation
 npm install
+```
+
+Create a `.env` file with your Neon connection strings (see [neon.tech](https://neon.tech)):
+
+```
+DATABASE_URL=postgresql://<user>:<password>@<host>/<db>?sslmode=require
+DATABASE_URL_UNPOOLED=postgresql://<user>:<password>@<host-direct>/<db>?sslmode=require
+```
+
+Push the schema to your Neon instance, then start the dev server:
+
+```bash
+npm run db:push
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000). No API keys, no database, no environment variables needed.
+Open [http://localhost:3000](http://localhost:3000). The Dashboard, Controls, Gaps, and Package views work with synthetic in-memory data. Reviewer actions (approve / reject / request changes) on the Audit log view additionally persist each event to Neon via `POST /api/audit`.
+
+> **Quick demo without a database:** the frontend views work without a database. Set up `.env` only if you want the audit trail persistence and the public verify endpoint.
 
 ## What the demo shows
 
@@ -43,13 +58,22 @@ Open [http://localhost:3000](http://localhost:3000). No API keys, no database, n
 │                                                             │
 │  lib/                                                       │
 │  ├── compliance-engine.ts  ← pure business logic (tested)   │
-│  ├── audit-chain.ts        ← SHA-256 hash chain             │
+│  ├── audit-chain.ts        ← SHA-256 hash chain + append    │
 │  ├── compliance-types.ts                                    │
-│  └── demo-data.ts          ← deterministic synthetic seed   │
+│  ├── demo-data.ts          ← deterministic synthetic seed   │
+│  └── db/                                                    │
+│      ├── schema.ts         ← Drizzle audit_events table     │
+│      └── index.ts          ← Neon serverless connection     │
+│                                                             │
+│  app/api/                                                   │
+│  ├── audit/route.ts        ← POST: persist new event to DB  │
+│  └── audit/verify/route.ts ← GET: re-verify chain from DB  │
 └─────────────────────────────────────────────────────────────┘
 ```
 
-**Architectural note:** This project intentionally diverges from the event-driven (Redis Streams) pattern used in other repos in this portfolio. Compliance evidence collection is snapshot-based and human-paced — scheduled jobs with an append-only audit trail are the correct fit. See [`docs/adr-001-scheduled-jobs-vs-event-driven.md`](docs/adr-001-scheduled-jobs-vs-event-driven.md) for the full reasoning.
+**Architectural notes:**
+- This project intentionally diverges from the event-driven (Redis Streams) pattern used in other repos in this portfolio. Compliance evidence collection is snapshot-based and human-paced — scheduled jobs with an append-only audit trail are the correct fit. See [`docs/adr-001-scheduled-jobs-vs-event-driven.md`](docs/adr-001-scheduled-jobs-vs-event-driven.md).
+- The decision to add Neon persistence while keeping the frontend-only UX intact is documented in [`docs/adr-002-neon-postgres-audit-persistence.md`](docs/adr-002-neon-postgres-audit-persistence.md).
 
 ## Distinctive feature: tamper-evident audit trail
 
@@ -61,7 +85,7 @@ chainHash  = SHA-256(id | timestamp | actor | action | targetId | beforeStatus |
 
 The Audit log view shows a **"Chain verified"** badge after computing all hashes client-side. Hover any hash cell to see the full 64-character hash and the previous link. This makes the audit log self-verifiable: if any event is altered, the chain breaks and the badge shows **"Chain broken"** with the first broken sequence number.
 
-In a production system this same pattern would run server-side with the chain persisted in an append-only table (e.g., PostgreSQL `GENERATED ALWAYS AS IDENTITY` + no `UPDATE`/`DELETE` grants on the audit table).
+Reviewer actions write each new chained event to Neon via `POST /api/audit`. The server appends to the chain by fetching the previous tail hash from the DB, computing `SHA-256(payload | previousHash)`, and inserting the full `ChainedAuditEvent` row. A public `GET /api/audit/verify` endpoint re-reads all rows and re-walks the chain, returning `{ valid, totalEvents, firstBrokenAt }` — verifiable by any HTTP client without the UI.
 
 ## SOC 2 control coverage
 
@@ -100,21 +124,23 @@ A **package** is `ready` when:
 
 ## Tech stack
 
-- **Next.js 15** (App Router)
+- **Next.js 15** (App Router, API routes)
 - **React 19** with TypeScript strict mode
-- **Vitest** — 12 tests covering compliance engine and hash chain
+- **Drizzle ORM** + **Neon PostgreSQL** (serverless HTTP driver) — audit event persistence
+- **Vitest** — 17 tests covering compliance engine, hash chain, and server-side append logic
 - **ESLint 9** flat config with `typescript-eslint`
 - **GitHub Actions** CI (lint → type-check → test → build)
-- Zero external dependencies at runtime (no database, no API keys)
 
 ## Commands
 
 ```bash
-npm run dev    # dev server at localhost:3000
-npm run build  # production build
-npm run lint   # ESLint (zero warnings)
-npm test       # Vitest
+npm run dev       # dev server at localhost:3000
+npm run build     # production build
+npm run lint      # ESLint (zero warnings)
+npm test          # Vitest (17 tests, no DB required)
 npx tsc --noEmit  # type-check
+npm run db:push   # push schema to Neon (requires DATABASE_URL in .env)
+npm run db:studio # open Drizzle Studio to browse audit_events table
 ```
 
 ## Synthetic data and privacy
