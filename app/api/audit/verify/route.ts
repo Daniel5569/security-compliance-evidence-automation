@@ -5,6 +5,8 @@ import { auditEvents } from "@/lib/db/schema";
 import { verifyChain } from "@/lib/audit-chain";
 import type { ChainedAuditEvent } from "@/lib/audit-chain";
 
+export const dynamic = "force-dynamic";
+
 export async function GET() {
   const rows = await db
     .select()
