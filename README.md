@@ -1,40 +1,46 @@
 # Security Compliance Evidence Automation
 
+[![CI](https://github.com/Daniel5569/security-compliance-evidence-automation/actions/workflows/ci.yml/badge.svg)](https://github.com/Daniel5569/security-compliance-evidence-automation/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-22c55e)](LICENSE)
 [![Next.js 15](https://img.shields.io/badge/Next.js-15-000000?logo=next.js&logoColor=white)](https://nextjs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5-3178c6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 
 **[→ Live Demo](https://security-compliance-evidence-automa.vercel.app)** · **[→ GitHub](https://github.com/Daniel5569/security-compliance-evidence-automation)**
 
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/Daniel5569/security-compliance-evidence-automation)
+
 A production-shaped compliance operations console for tracking SOC 2, ISO 27001, and customer security review evidence — with control readiness, reviewer workflows, gap analysis, package builder, and a tamper-evident hash-chained audit trail.
 
 Built as a portfolio demo targeting B2B SaaS companies where security reviews and evidence management are often handled manually in spreadsheets.
 
-## Demo — run in 60 seconds
+## Who is this for
+
+- **Founders pre-SOC 2** who need to understand what a real compliance ops workflow looks like before hiring a dedicated team
+- **Compliance engineers** evaluating evidence tracking architecture — hash-chained audit trails, reviewer workflows, and gap analysis at the schema level
+- **CTOs and engineering leads** at B2B SaaS companies that receive customer security questionnaires manually and want to systematize the process
+- **Security-focused engineers** interested in tamper-evident audit log design with SHA-256 hash chaining
+
+## Quick Start
+
+> **No database needed for the demo.** The Dashboard, Controls, Gaps, and Package views all work with synthetic in-memory data out of the box. Only the Audit Log persistence requires a database.
 
 ```bash
 git clone https://github.com/Daniel5569/security-compliance-evidence-automation
 cd security-compliance-evidence-automation
 npm install
+npm run dev
 ```
 
-Create a `.env` file with your Neon connection strings (see [neon.tech](https://neon.tech)):
+Open [http://localhost:3000](http://localhost:3000) — the full UI loads immediately with seeded demo data.
+
+**With audit persistence (optional):** Add a `.env` file with your [Neon](https://neon.tech) connection strings:
 
 ```
 DATABASE_URL=postgresql://<user>:<password>@<host>/<db>?sslmode=require
 DATABASE_URL_UNPOOLED=postgresql://<user>:<password>@<host-direct>/<db>?sslmode=require
 ```
 
-Push the schema to your Neon instance, then start the dev server:
-
-```bash
-npm run db:push
-npm run dev
-```
-
-Open [http://localhost:3000](http://localhost:3000). The Dashboard, Controls, Gaps, and Package views work with synthetic in-memory data. Reviewer actions (approve / reject / request changes) on the Audit log view additionally persist each event to Neon via `POST /api/audit`.
-
-> **Quick demo without a database:** the frontend views work without a database. Set up `.env` only if you want the audit trail persistence and the public verify endpoint.
+Then run `npm run db:push` to push the schema. Reviewer actions will now persist to your Neon instance and the chain verify endpoint becomes live.
 
 ## What the demo shows
 
@@ -85,75 +91,37 @@ Open [http://localhost:3000](http://localhost:3000). The Dashboard, Controls, Ga
 
 Every action in the audit log is linked into a SHA-256 hash chain. Each event stores:
 
-```
-chainHash  = SHA-256(id | timestamp | actor | action | targetId | beforeStatus | afterStatus | previousHash)
-```
-
-The Audit log view shows a **"Chain verified"** badge after computing all hashes client-side. Hover any hash cell to see the full 64-character hash and the previous link. This makes the audit log self-verifiable: if any event is altered, the chain breaks and the badge shows **"Chain broken"** with the first broken sequence number.
+- its own payload hash
+- the hash of the previous event
+- `chainHash = SHA-256(payload | previousHash)`
 
 Reviewer actions write each new chained event to Neon via `POST /api/audit`. The server appends to the chain by fetching the previous tail hash from the DB, computing `SHA-256(payload | previousHash)`, and inserting the full `ChainedAuditEvent` row. A public `GET /api/audit/verify` endpoint re-reads all rows and re-walks the chain, returning `{ valid, totalEvents, firstBrokenAt }` — verifiable by any HTTP client without the UI.
 
-## SOC 2 control coverage
-
-The demo ships with controls across five SOC 2 Trust Services Criteria domains:
-
-| Domain | Controls |
-|--------|----------|
-| Access control (CC6) | User access review, employee access, authentication |
-| Change management (CC8) | Change approval, deployment, rollback, vulnerability triage |
-| Incident response (CC7.2–7.5) | IR procedures, severity matrix, customer communication |
-| Vendor management (CC9) | Vendor risk, subprocessor register, supplier review |
-| Security monitoring (CC7.1) | Alert policy, triage samples, log coverage |
-
-Plus ISO 27001 Annex A domains (A.5 – A.18 subset) and a Customer Security Review package track.
-
-## Compliance workflow model
-
-```
-Evidence collected
-       ↓
- in_review (queued for human review)
-       ↓
- approved ──────────────────────────► included in package
-       │
- needs_changes → owner updates → back to in_review
-       │
- rejected ──────────────────────────► excluded from package
-       │
- expired (freshness window exceeded) ► creates high gap
-```
-
-A **package** is `ready` when:
-- Readiness score ≥ 85% across framework controls
-- Zero high-severity gaps
-- ≤ 2 pending review items
-
 ## Tech stack
 
-- **Next.js 15** (App Router, API routes)
-- **React 19** with TypeScript strict mode
-- **Drizzle ORM** + **Neon PostgreSQL** (serverless HTTP driver) — audit event persistence
-- **Vitest** — 21 tests: 17 unit (compliance engine, hash chain, server-side append) + 4 integration (DB tamper detection, skipped without `DATABASE_URL`)
-- **ESLint 9** flat config with `typescript-eslint`
-- **GitHub Actions** CI (lint → type-check → test → build)
+| Layer | Technology |
+|-------|-----------|
+| Framework | Next.js 15, React 19, TypeScript |
+| Styling | CSS Grid, custom properties (no Tailwind) |
+| ORM | Drizzle ORM |
+| Database | Neon PostgreSQL (serverless HTTP driver) |
+| Audit chain | SHA-256 via Web Crypto API |
+| Testing | Vitest (pure function unit tests) |
+| CI | GitHub Actions |
 
-## Commands
+## Running tests
 
 ```bash
-npm run dev              # dev server at localhost:3000
-npm run build            # production build
-npm run lint             # ESLint (zero warnings)
-npm test                 # Vitest unit tests (17 pass; 4 integration skipped without DATABASE_URL)
-npm run test:integration # DB tamper-detection integration tests (requires DATABASE_URL in .env)
-npx tsc --noEmit         # type-check
-npm run db:push          # push schema to Neon (requires DATABASE_URL in .env)
-npm run db:studio        # open Drizzle Studio to browse audit_events table
+npm run check         # lint + type check + tests + build
+npm test              # unit tests only (Vitest)
+npm run db:push       # push schema to Neon (requires DATABASE_URL)
 ```
 
-## Synthetic data and privacy
+## Data & privacy
 
 Seed controls, evidence items, owners, and the pre-loaded audit events are deterministic synthetic data. Reviewer actions taken in the live UI generate real audit events that are persisted to your Neon instance — those are not synthetic. No real names, infrastructure identifiers, API keys, credentials, or customer data in the repo. Safe to publish as-is.
 
-## Compliance disclaimer
+## Architecture decision records
 
-Portfolio/demo project. Not legal advice, not an audit tool, not a SOC 2 or ISO 27001 certification service.
+- [`adr-001`](docs/adr-001-scheduled-jobs-vs-event-driven.md) — why scheduled jobs instead of Redis Streams for compliance evidence
+- [`adr-002`](docs/adr-002-neon-postgres-audit-persistence.md) — why Neon was added while keeping in-memory UX intact
