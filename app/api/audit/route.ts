@@ -5,6 +5,8 @@ import { auditEvents } from "@/lib/db/schema";
 import { appendEvent } from "@/lib/audit-chain";
 import type { AuditEvent } from "@/lib/compliance-types";
 
+export const dynamic = "force-dynamic";
+
 const GENESIS_HASH = "0".repeat(64);
 
 export async function POST(req: NextRequest) {
