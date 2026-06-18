@@ -125,3 +125,24 @@ Seed controls, evidence items, owners, and the pre-loaded audit events are deter
 
 - [`adr-001`](docs/adr-001-scheduled-jobs-vs-event-driven.md) — why scheduled jobs instead of Redis Streams for compliance evidence
 - [`adr-002`](docs/adr-002-neon-postgres-audit-persistence.md) — why Neon was added while keeping in-memory UX intact
+## Architecture Decisions FAQ
+
+**Q: Why hash-chain audit events instead of relying on database timestamps and row versioning?**
+
+Database timestamps can be updated by anyone with write access to the database — including migrations, admin scripts, and ORM bugs. A hash chain makes each event's integrity dependent on all previous events: changing or deleting any record breaks the chain at that point, and the break is detectable by re-running the verification function over the full sequence. Timestamps and row versions prove when a row was written; a hash chain proves the sequence has not been altered after the fact.
+
+**Q: Why build this instead of using a managed tool like Vanta or Drata?**
+
+Vanta and Drata are excellent products for teams that want to get to SOC 2 with minimal engineering effort. This codebase targets a different audience: compliance engineers who want to understand what the underlying data model and audit trail look like, and founders who want a lightweight internal tool they control rather than a SaaS subscription per-seat cost. It is also a portfolio demo that shows production-shaped architecture patterns — hash-chained audit trails and reviewer workflows — not a claim that everyone should build their own compliance platform.
+
+**Q: What does tamper-evident mean in practice — can the hash chain detect all tampering?**
+
+The chain detects any modification to a stored event that changes the data used to compute its hash (actor, action, target, timestamps, previous hash). It does not prevent tampering — someone with database write access can still overwrite rows. What it guarantees is that tampering is detectable: the verify endpoint re-derives each hash from the stored fields and checks it against the stored chain hash. If they diverge, the response includes the sequence number of the first broken link. The chain is a detection mechanism, not an access control.
+
+**Q: Why scheduled jobs for evidence collection instead of event-driven updates?**
+
+Evidence typically comes from external systems (ticketing tools, cloud provider dashboards, access review exports) that do not emit webhooks on every change. A scheduled pull model works with any source that has a read API, regardless of whether it supports push events. It also makes the ingestion pipeline deterministic and testable — run the collector at T, get the same evidence snapshot, verify the hash chain covers the run. An event-driven model would require webhook receivers, retry queues, and deduplication logic for each source system.
+
+**Q: What is a security package — who receives it and in what format?**
+
+A security package is a point-in-time export of evidence for a specific control set, formatted for a customer or auditor. In practice this is a ZIP of evidence artifacts (screenshots, policy documents, export CSVs) plus a cover page listing control IDs, evidence references, and review status. B2B SaaS companies produce these for enterprise customers who ask for security documentation before signing a contract. The package builder in this system assembles the export from the evidence already stored in the database rather than requiring manual collection each time.
