@@ -1,6 +1,9 @@
 # Security Compliance Evidence Automation
 
 [![CI](https://github.com/Daniel5569/security-compliance-evidence-automation/actions/workflows/ci.yml/badge.svg)](https://github.com/Daniel5569/security-compliance-evidence-automation/actions/workflows/ci.yml)
+
+![Screenshot](docs/screenshot.png)
+
 [![License: MIT](https://img.shields.io/badge/License-MIT-22c55e)](LICENSE)
 [![Next.js 15](https://img.shields.io/badge/Next.js-15-000000?logo=next.js&logoColor=white)](https://nextjs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5-3178c6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
